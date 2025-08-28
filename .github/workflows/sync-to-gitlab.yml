@@ -3,7 +3,7 @@ name: Sync Repository to GitLab
 on:
   push:
     branches:
-      - main  # lub inna gałąź, którą chcesz synchronizować
+      - main
 
 jobs:
   sync:
@@ -14,9 +14,21 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Sync to GitLab
-      uses: keninkujovic/gitlab-sync@2.1.0
-      with:
-        gitlab_url: ${{ secrets.GITLAB_URL }}
-        username: ${{ secrets.USERNAME }}
-        gitlab_pat: ${{ secrets.GITLAB_PAT }}
+    - name: Configure Git to connect to GitLab
+      run: |
+        git remote add gitlab ${{ secrets.GITLAB_URL }}
+        git config user.name "${{ secrets.USERNAME }}"
+        git config user.email "auto-sync@example.com"
+      
+    - name: Pull latest changes from GitLab and merge
+      run: |
+        git fetch gitlab main
+        git merge gitlab/main --allow-unrelated-histories -m "Merge remote changes from GitLab"
+        
+    - name: Push changes to GitLab
+      env:
+        GIT_ASKPASS: /bin/echo
+        GIT_PASSWORD: ${{ secrets.GITLAB_PAT }}
+        GIT_USERNAME: ${{ secrets.USERNAME }}
+      run: |
+        git push gitlab main
